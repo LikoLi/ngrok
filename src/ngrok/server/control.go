@@ -10,6 +10,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+	"os"
+	"bufio"
 )
 
 const (
@@ -82,6 +84,33 @@ func NewControl(ctlConn conn.Conn, authMsg *msg.Auth) {
 		ctlConn.Close()
 	}
 
+	// open auth
+	readLine := func(token string, filename string) (bool, error) {
+
+        if token == "" {
+            return false, nil;
+        }
+        f, err := os.Open(filename)
+        if err != nil {
+            return false, err
+        }
+        buf := bufio.NewReader(f)
+        for {
+            line, err := buf.ReadString('\n')
+            line = strings.TrimSpace(line)
+            if line == token {
+                return true, nil
+            }
+            if err != nil {
+                if err == io.EOF {
+                    return false, nil
+                }
+                return false, err
+            }
+        }
+       	return false, nil
+ 	 }
+
 	// register the clientid
 	c.id = authMsg.ClientId
 	if c.id == "" {
@@ -100,6 +129,13 @@ func NewControl(ctlConn conn.Conn, authMsg *msg.Auth) {
 		failAuth(fmt.Errorf("Incompatible versions. Server %s, client %s. Download a new version at http://ngrok.com", version.MajorMinor(), authMsg.Version))
 		return
 	}
+
+	    authd, err := readLine(authMsg.User, "authtokens.txt")
+
+    if authd != true {
+        failAuth(fmt.Errorf("authtoken %s invalid", "is"));
+        return
+}
 
 	// register the control
 	if replaced := controlRegistry.Add(c.id, c); replaced != nil {
